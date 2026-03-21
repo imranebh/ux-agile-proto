@@ -1,0 +1,14 @@
+package net.est.uxagile.domain.enums;
+
+public enum RideStatus {
+    REQUESTED,
+    DRIVER_ASSIGNED,
+    DRIVER_EN_ROUTE,
+    SAFETY_GATE_TRIGGERED,
+    AWAITING_PASSENGER_DECISION,
+    APPROVED_TO_APPROACH,
+    CANCELED_BY_REFUSAL,
+    IN_PROGRESS,
+    ARRIVED,
+    COMPLETED
+}
