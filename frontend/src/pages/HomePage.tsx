@@ -14,6 +14,7 @@ export function HomePage() {
     setDestination,
     getEstimate,
     createRide,
+    clearBooking,
     isLoading,
     error,
     clearError,
@@ -23,6 +24,43 @@ export function HomePage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodResponse[]>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
   const [loadingMethods, setLoadingMethods] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setGeoLoading(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setPickup(latitude, longitude, `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setGeoLoading(false);
+      },
+      (err) => {
+        setGeoLoading(false);
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            setGeoError('Location access denied. Please enable location permissions.');
+            break;
+          case err.POSITION_UNAVAILABLE:
+            setGeoError('Location information unavailable.');
+            break;
+          case err.TIMEOUT:
+            setGeoError('Location request timed out.');
+            break;
+          default:
+            setGeoError('Unable to get your location.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   // Load payment methods when reaching confirm step
   useEffect(() => {
@@ -31,7 +69,7 @@ export function HomePage() {
       paymentsApi.getMethods()
         .then((methods) => {
           setPaymentMethods(methods);
-          const defaultMethod = methods.find((m) => m.isDefault);
+          const defaultMethod = methods.find((m) => m.defaultMethod);
           if (defaultMethod) setSelectedPaymentId(defaultMethod.id);
           else if (methods.length > 0) setSelectedPaymentId(methods[0].id);
         })
@@ -66,6 +104,7 @@ export function HomePage() {
     if (!selectedPaymentId) return;
     try {
       const ride = await createRide(selectedPaymentId);
+      clearBooking();
       navigate(`/rides/${ride.id}/tracking`);
     } catch {
       // Error handled by store
@@ -125,11 +164,29 @@ export function HomePage() {
           {step === 'pickup' && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Select Pickup Location</h2>
-              <p className="text-gray-600 text-sm">Click on the map to set your pickup point</p>
+              <p className="text-gray-600 text-sm">Click on the map or use your current location</p>
+              
+              <Button
+                variant="secondary"
+                onClick={handleUseMyLocation}
+                disabled={geoLoading}
+                isLoading={geoLoading}
+                className="w-full"
+              >
+                📍 Use My Current Location
+              </Button>
+
+              {geoError && (
+                <Alert variant="error" onClose={() => setGeoError(null)}>
+                  {geoError}
+                </Alert>
+              )}
+
               <Map
                 className="h-72"
                 onMapClick={handleMapClick}
                 markers={markers}
+                center={booking.pickupLat && booking.pickupLng ? [booking.pickupLat, booking.pickupLng] : undefined}
               />
               <Input
                 label="Pickup Address"
@@ -248,8 +305,8 @@ export function HomePage() {
                           onChange={() => setSelectedPaymentId(method.id)}
                           className="mr-3"
                         />
-                        <span className="font-mono">{method.maskedCard}</span>
-                        {method.isDefault && (
+                        <span className="font-mono">{method.brand} •••• {method.last4}</span>
+                        {method.defaultMethod && (
                           <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                             Default
                           </span>

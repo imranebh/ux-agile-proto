@@ -66,6 +66,12 @@ export function Map({
     };
   }, []);
 
+  // Update center when it changes
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.setView(center, zoom);
+  }, [center[0], center[1]]);
+
   // Update markers
   useEffect(() => {
     if (!mapRef.current) return;

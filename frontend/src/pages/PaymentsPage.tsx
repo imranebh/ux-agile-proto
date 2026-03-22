@@ -10,9 +10,8 @@ import type { PaymentMethodResponse } from '@/types';
 const cardSchema = z.object({
   cardNumber: z.string().min(12).max(19).regex(/^\d+$/, 'Invalid card number'),
   expMonth: z.string().length(2).regex(/^(0[1-9]|1[0-2])$/, 'Invalid month'),
-  expYear: z.string().length(2).regex(/^\d{2}$/, 'Invalid year'),
+  expYear: z.string().min(2).max(4).regex(/^\d{2,4}$/, 'Invalid year'),
   cvv: z.string().min(3).max(4).regex(/^\d+$/, 'Invalid CVV'),
-  isDefault: z.boolean(),
 });
 
 type CardFormData = z.infer<typeof cardSchema>;
@@ -31,8 +30,17 @@ export function PaymentsPage() {
     formState: { errors },
   } = useForm<CardFormData>({
     resolver: zodResolver(cardSchema),
-    defaultValues: { isDefault: false },
   });
+
+  // Detect card brand from card number
+  const detectCardBrand = (cardNumber: string): string => {
+    const num = cardNumber.replace(/\s/g, '');
+    if (/^4/.test(num)) return 'Visa';
+    if (/^5[1-5]/.test(num) || /^2[2-7]/.test(num)) return 'Mastercard';
+    if (/^3[47]/.test(num)) return 'Amex';
+    if (/^6(?:011|5)/.test(num)) return 'Discover';
+    return 'Unknown';
+  };
 
   const loadMethods = async () => {
     try {
@@ -53,12 +61,21 @@ export function PaymentsPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await paymentsApi.addMethod(data);
+      const brand = detectCardBrand(data.cardNumber);
+      await paymentsApi.addMethod({
+        provider: 'stripe',
+        brand,
+        cardNumber: data.cardNumber,
+        expMonth: data.expMonth,
+        expYear: data.expYear,
+        cvv: data.cvv,
+      });
       await loadMethods();
       setShowModal(false);
       reset();
-    } catch {
-      setError('Failed to add payment method');
+    } catch (err) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      setError(axiosError.response?.data?.message || 'Failed to add payment method');
     } finally {
       setSubmitting(false);
     }
@@ -109,14 +126,16 @@ export function PaymentsPage() {
                       💳
                     </div>
                     <div>
-                      <p className="font-mono font-medium">{method.maskedCard}</p>
+                      <p className="font-mono font-medium">
+                        {method.brand} •••• {method.last4}
+                      </p>
                       <p className="text-sm text-gray-500">
-                        Added {new Date(method.createdAt).toLocaleDateString()}
+                        Expires {method.expiryMonth}/{method.expiryYear}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {method.isDefault && (
+                    {method.defaultMethod && (
                       <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                         Default
                       </span>
@@ -161,8 +180,8 @@ export function PaymentsPage() {
                 label="Year"
                 {...register('expYear')}
                 error={errors.expYear?.message}
-                placeholder="YY"
-                maxLength={2}
+                placeholder="YYYY"
+                maxLength={4}
               />
               <Input
                 label="CVV"
@@ -173,10 +192,6 @@ export function PaymentsPage() {
                 maxLength={4}
               />
             </div>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" {...register('isDefault')} />
-              <span className="text-sm">Set as default payment method</span>
-            </label>
             <div className="flex gap-3 pt-2">
               <Button
                 type="button"

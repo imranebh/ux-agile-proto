@@ -1,4 +1,4 @@
-# AutoStop Frontend
+    # AutoStop Frontend
 
 React + TypeScript frontend for the AutoStop ride-hailing application.
 

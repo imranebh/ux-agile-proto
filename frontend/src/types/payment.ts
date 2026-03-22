@@ -1,18 +1,22 @@
 export type PaymentStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
 
 export interface AddPaymentMethodRequest {
+  provider: string;
+  brand: string;
   cardNumber: string;
   expMonth: string;
   expYear: string;
   cvv: string;
-  isDefault: boolean;
 }
 
 export interface PaymentMethodResponse {
   id: number;
-  maskedCard: string;
-  isDefault: boolean;
-  createdAt: string;
+  provider: string;
+  brand: string;
+  last4: string;
+  expiryMonth: string;
+  expiryYear: string;
+  defaultMethod: boolean;
 }
 
 export interface PaymentResponse {

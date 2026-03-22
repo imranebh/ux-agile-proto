@@ -44,6 +44,7 @@ export function TrackingPage() {
     addDriverLocation,
     validateDriver,
     refuseDriver,
+    clearRide,
     isLoading,
     error,
     clearError,
@@ -52,12 +53,20 @@ export function TrackingPage() {
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Fetch ride on mount
+  // Fetch ride data on mount (clear previous driver locations but not during initial load)
   useEffect(() => {
-    if (rideId) {
+    if (rideId && !isNaN(rideId)) {
+      // Only clear if switching to a different ride
+      if (currentRide && currentRide.id !== rideId) {
+        clearRide();
+      }
       fetchRide(rideId);
     }
-  }, [rideId, fetchRide]);
+    return () => {
+      clearRide();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-fetch when rideId changes
+  }, [rideId]);
 
   // SSE message handler
   const handleSSEMessage = useCallback(

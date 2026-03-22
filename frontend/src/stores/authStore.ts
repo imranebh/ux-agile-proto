@@ -63,8 +63,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const user = await authApi.me();
-          set({ user, isLoading: false });
-        } catch (err) {
+          set({ user, isAuthenticated: true, isLoading: false });
+        } catch {
           set({ isLoading: false });
           get().logout();
         }
